@@ -248,6 +248,15 @@ td{padding:8px 13px;font-size:13px;color:var(--text);vertical-align:middle}
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="search-box" type="text" placeholder="Search supplements…" oninput="filterCards(this.value)">
       </div>
+      <button class="btn" onclick="exportData()" title="Download your supplement data as a backup file">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="btn" onclick="document.getElementById('import-input').click()" title="Restore from a previously exported backup file">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+      </button>
+      <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
       <button class="btn danger" onclick="confirmClearAll()" style="margin-left:auto">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         Clear All
@@ -873,6 +882,56 @@ document.addEventListener("keydown", e => {
     if (!e.target.closest(".nutrient-row")) saveSupp();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════════════
+function exportData() {
+  if (!supplements.length) { showToast("Nothing to export yet."); return; }
+  const payload = JSON.stringify(supplements, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `supplement-tracker-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Backup downloaded ✓");
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (!Array.isArray(data)) throw new Error("Invalid format");
+      // Validate each entry has the minimum expected shape
+      data.forEach(s => {
+        if (typeof s.name !== "string" || typeof s.nutrients !== "object") throw new Error("Invalid supplement entry");
+      });
+      document.getElementById("confirm-title").textContent = "Replace your data?";
+      document.getElementById("confirm-msg").textContent = `This will load ${data.length} supplement${data.length !== 1 ? "s" : ""} from the backup file and replace your current data.`;
+      document.getElementById("confirm-ok").textContent = "Yes, Import";
+      document.getElementById("confirm-ok").className = "btn primary";
+      confirmCallback = () => {
+        supplements = data;
+        save();
+        renderCards();
+        updateAll();
+        showToast(`Imported ${data.length} supplement${data.length !== 1 ? "s" : ""} ✓`);
+      };
+      document.getElementById("confirm-overlay").classList.add("open");
+    } catch(err) {
+      showToast("Could not read file — make sure it's a valid backup.");
+    }
+  };
+  reader.readAsText(file);
+  // Reset input so the same file can be re-imported if needed
+  e.target.value = "";
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
