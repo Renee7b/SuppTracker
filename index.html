@@ -948,7 +948,7 @@ function init() {
     // Check if we should seed (owner's data) or stay blank
     // SEED = true  → pre-populate with the supplements below (owner's device logic)
     // SEED = false → everyone starts blank
-    const SEED = false; // ← set to false before sharing on GitHub
+    const SEED = true; // ← set to false before sharing on GitHub so others start blank
     if (SEED) {
       supplements = JSON.parse(JSON.stringify(SEED_SUPPLEMENTS));
       save();
